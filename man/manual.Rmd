@@ -4,9 +4,9 @@ author: "Seungyong Hwang"
 date: '2020 2 25 '
 numbersections: true
 output:
-  pdf_document: default
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -18,13 +18,11 @@ This document describes how to download, preprocess and analyze diffusion MRI (d
 
 ![Data analysis pipeline of dMRI data from the Human Connectome Project (HCP) database](pipeline.png)
 
-
-
 # HCP dMRI data preprocessing
 This section describes how to download and process diffussion MRI (dMRI) data from the Human Connectome Project (HCP) database using various *neuroconductor* R packages (https://neuroconductor.org/)
 
 ## HCP dMRI data download
-**Step 1**: Obtain AWS access credential. Your AWS access credential (access key id and secret key ) is available on https://db.humanconnectome.org/app/template/Login.vm. You need to  log in your ConnectomeDB account and then click the **Amazon S3 Access Enabled** box. If you do not have an account, you need to first create one. 
+**Step 1**: Obtain AWS access credential. Your AWS access credential (access key id and secret key ) is available on https://db.humanconnectome.org/app/template/Login.vm. You need tolog in your ConnectomeDB account and then click the **Amazon S3 Access Enabled** box. If you do not have an account, you need to first create one. 
 
 
 ![Wu-Minn HCP Data webpage.](connectome.png)
@@ -43,7 +41,6 @@ set_aws_api_key(access_key = "your_access_key", secret_key = "your_secret_key")
 hcp_info=hcp_1200_scanning_info # Information of the database
 hcp_id=hcp_info$id #ID of available subjects
 ```
-
 
 For each subject’s dMRI directory, we can download five files (approximately, 1.3GB) as follows:
 
@@ -68,10 +65,10 @@ download_hcp_file("HCP/100307/T1w/T1w_acpc_dc_restore_1.25.nii.gz", verbose = FA
 
 **Notes**: Sometimes, the corresponding files of an ID found through **hcp_1200_scanning_info** could not be downloaded through either **download_hcp_dir** or **download_hcp_file**. This problem can occur due to two reasons.
 
-* The first is that the dMRI data of this subject has not been registered on ConnectomeDB.
-* The second  is that the dMRI data has not registered with proper directory path on AWS, even though the data is available on ConnectomeDB. 
+* The first is that the dMRI data of this subject have not been registered on ConnectomeDB.
+* The second is that the dMRI data have not been registered with proper directory path on AWS, even though the data are available on ConnectomeDB. 
 
-You can check whether the dMRI data is available on AWS by using the **hcp_list_dirs** function:  If the result from **hcp_list_dirs** does not have any value in *parsed_result$Contents$Key[[1]]*, it means you need to check the availability of file, manually.
+You can check whether the dMRI data are available on AWS by using the **hcp_list_dirs** function:  If the result from **hcp_list_dirs** does not have any value in *parsed_result$Contents$Key[[1]]*, it means you need to check the availability of file, manually.
 
 ```{r eval=FALSE}
 dir_info=hcp_list_dirs(paste0("HCP/100307/T1w/Diffusion"))
@@ -88,7 +85,6 @@ The *fslr* R package from *neuroconductor* (https://neuroconductor.org/package/f
 ```{r eval=FALSE}
 library(fslr)
 ```
-
 
 **Step 1 -- BET extraction** (https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/BET): This tool deletes non-brain tissue from an image of the whole head. The resulting image is  used as input for registration (Step 2). 
 ```{r eval=FALSE}
@@ -134,23 +130,32 @@ flirt_apply(infile="/User/data_brain.nii.gz",
 
 
 **Example**
-* example_HCP_dMRI_download_preprocess.R: Download DWI from AWS and preprocess in FSL (BET, FLIRT)
-
+* example_HCP_dMRI_download_preprocess.R: Download DWI from AWS and preprocess in **FSL** (BET, FLIRT)
 
 
 # ROI Selection 
-This section describes how to select a region of interest on the template brain in **fsleyes**.
-**Step 1** :  Settings -> Ortho View 1 -> Atlas Panel
+
+This section describes how to select a region of interest on the template brain in the **FSL** image viewer: **FSLeyes**. If **FSL** is already installed on your computer in the previous step, **FSLeyes** can be used without further installation. Basic configuration of **FSLeyes** is available on (https://fsl.fmrib.ox.ac.uk/fslcourse/lectures/practicals/intro1/index.html)
+
+**Step 1** : You have to load the template image which you have used in FLIRT registration step. In our registration step, we used "MNI152_T1_2mm_brain.nii.gz" as a template. To load this template image, in **FSLeyes**, 
+
+File -> Add standard -> Choose MNI152_T1_2mm_brain.nii.gz.
+
+**Step 2** : Based on the available Atalases in **FSLeyes**, we can explore each part of brain. 
+
+Settings -> Ortho View 1 -> Atlas Panel
 
 ![](roi1.png)
 
 \newpage
 
-**Step 2**:
-In “Atlases” Panel (at the bottom of the window), choose an atlas and a prespecified brain region: Click on the atlas search bar and search the part of brain, e.g., “putamen”.
+**Step 3**: In “Atlases” Panel (at the bottom of the window), choose an atlas and a prespecified brain region: Click on the atlas search bar and search the part of brain (e.g., “putamen”). Then, the selected part of brain ("putamen") is projected onto the template image.
 
 ![](roi2.png)
-**Step 3**:	Click the button (highlighted by red)  to save the mask of the selected ROI as an .nii.gz file. This file will be used in the subsequent data analysis (see example_HCP_analysis.py for details). 
+
+\
+\
+**Step 4**:	Click the button (highlighted by red) to save the mask of the selected ROI as an .nii.gz file. This file will be used in the subsequent data analysis (see example_HCP_analysis.py for details). 
 
 ![](roi3.png)
 
@@ -166,7 +171,7 @@ This part is done in *python* and *matlab*.
   - bvecs: gradient directions
   - data_brain_flirt.nii.gz: whole brain dMRI (This is not given in the repository since registration on connectome DB is required to access these data)
   - Caudate(R).nii.gz: mask of ROI (Caudate in the right hemisphere)
-  - Caudate(R)_noise.nii.gz: faked image for Caudate in the right hemisphere (original signals with artificially added small noises)
+  - Caudate(R)_noise.nii.gz: synthetic image for Caudate in the right hemisphere (original signals with artificially added small noises)
   
 - FOD plotting example:
   - est_result.mat: The mean and sd of the estimated FODs from 100 numerical simulation.
@@ -176,7 +181,10 @@ This part is done in *python* and *matlab*.
 - example_simulation_fib2.py: simulation example where the true FOD has two peaks
 - example_simulation_fib3.py: simulation example where the true FOD has three peaks
 - example_HCP_analysis.py: script to run HCP data application
+  - Input: bvals, bvecs, Caudate(R).nii.gz, Caudate(R)_noise.nii.gz
+  - Output: HCP_peaks.mat
 - example_plot_fod.m: script to plot the estimated FOD in matlab
+  - Input: est_result.mat
 
 **Python codes**: in */python* folder: 
 
@@ -196,12 +204,25 @@ This part is done in *R*.
 
 **Data**:  in */data* folder: 
 
-* HCP_peaks.mat: extracted peak of estimated FODs. These are used as inputs for the tracking algorithm.
+- HCP_peaks.mat: extracted peak of estimated FODs. These are used as inputs for the tracking algorithm.
 
 **Example script**: in */example_scripts* folder: 
 
-* example_HCP_tractography.R: this is the script to run the tracking algorithm on the HCP application 
-
+- example_HCP_tractography.R: this is the script to run the tracking algorithm on the HCP application 
+  - Input: HCP_peaks.mat
+  
 **R package**: in */dmri.tracking-r*
 
-* dmri.tracking_0.1.0.tar.gz: R package for tracking algorithm and tractography.
+- dmri.tracking_0.1.0.tar.gz: R package for tracking algorithm and tractography.
+
+# Supporting software requirements: 
+
+* R(version 3.6.2)
+  - required R packages (rgl, R.matlab, dmri.tracking, neurohcp, fslr)
+* python3(3.7.6)
+  - required python3 packages (numpy, scipy, tqdm, nibabel, warnings)
+* matlab(R2017a) 
+* FSL(version 6.0.3)
+* Xquartz (version 2.7.11)
+
+* Github: https://github.com/vic-dragon/BJS
