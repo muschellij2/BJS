@@ -24,9 +24,7 @@ import numpy as np
 #       (e.g. k=1, thresholding is not applied to the blocks which are correspoding to l=0,2 )
 #       (e.g. k=2, thresholding is not applied to the blocks which are correspoding to l=0,2,4 )
 #Output: estimated FOD 
-def BJS(Y, SH, SHD, SHP, R, mu1, mu2, muinf, lmax, tau=0, t=1, k=2):
-    
-    
+def BJS(Y, SH, SHD, SHP, R, mu1, mu2, muinf, lmax, tau=0, t=1, k=2, SH_plot=None,plot=False):
     
     L = int((lmax+1)*(lmax+2)/2)
     
@@ -36,8 +34,9 @@ def BJS(Y, SH, SHD, SHP, R, mu1, mu2, muinf, lmax, tau=0, t=1, k=2):
 
     sigma2=np.sum((Y-SH_init.dot(np.linalg.inv(SH_init.T.dot(SH_init))).dot(SH_init.T).dot(Y))**2)/(len(Y)-np.linalg.matrix_rank(SH_init))  
 
-    Z=np.linalg.inv(X_init.T.dot(X_init)).dot(X_init.T).dot(Y)
-    V=np.linalg.inv(X_init.T.dot(X_init))
+    bar_R = precond_R(R_init,1)
+    Z = bar_R.dot(np.linalg.inv(SH_init.T.dot(SH_init))).dot(SH_init.T).dot(Y)
+    V = bar_R.dot(np.linalg.inv(SH_init.T.dot(SH_init))).dot(bar_R)
     
     ind_block=indicator_block(lmax)
 
@@ -55,17 +54,23 @@ def BJS(Y, SH, SHD, SHP, R, mu1, mu2, muinf, lmax, tau=0, t=1, k=2):
             err_prop = sigma2*(mu1[i] + 2*np.sqrt(mu2[i]*tk) + 2*tk*muinf[i]) / np.sum(Zk**2) 
             shrink_eq = (1-err_prop)
             init_ests.extend(shrink_eq*(shrink_eq>0)*Zk)
-        
-    fod_init = SHD[:,:L].dot(np.array(init_ests))
+    
+    theta = np.array(init_ests)
+    nobar_R = precond_R(R_init,0)
+    fod_init = SHD[:,:L].dot(nobar_R.dot(theta))
        
     SHD_update = SHD[np.where(fod_init<0)[0],:]
     
     X_update = np.vstack((SH.dot(R),SHD_update))
     Y_update = np.concatenate((Y,np.zeros(SHD_update.shape[0])))
     
-    fod_update = SHP.dot(np.linalg.inv(X_update.T.dot(X_update))).dot(X_update.T).dot(Y_update)
-    
-    return fod_stand(fod_update)    
+    coeff = np.linalg.inv(X_update.T.dot(X_update)).dot(X_update.T).dot(Y_update)
+    fod_update = SHP.dot(coeff)
+
+    if plot:
+        return fod_stand(fod_update), fod_stand((SH_plot.dot(coeff)))
+    else:
+        return fod_stand(fod_update)
 
 #%% Description: FOD estimation method SHRidge motivated by Descoteaux et al.(2006)
 #Input: Y: DWI signal
@@ -168,11 +173,30 @@ def indicator_block(lmax):
 
     return(indi_block)
 
-# BSJ: calculate eigenvalues for each block
+# BJS: Preconditioning convolution matrix R
+def precond_R(R,bar,alpha=-0.5):
+    '''
+    R: Convolution kernel matrix
+    bar: indicator of bar (0: w/o bar, 1: bar)
+    '''
+    r=np.diag(R)
+    
+    if (bar==0):
+        result=np.sign(r)*(np.abs(r)**(alpha))
+    
+    elif (bar==1):
+        result=(np.abs(r)**(alpha))    
+
+    return np.diag(result)
+
+# BJS: calculate eigenvalues for each block
 def cal_mu(SH, R, lmax):
     
-    X = SH.dot(R)    
-    V = np.linalg.inv(X.T.dot(X))
+    #X = SH.dot(R)    
+    #V = np.linalg.inv(X.T.dot(X))
+
+    bar_R = precond_R(R,1)
+    V = bar_R.dot(np.linalg.inv(SH.T.dot(SH))).dot(bar_R)
 
     k_indi=indicator_block(lmax)
     

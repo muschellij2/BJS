@@ -74,8 +74,8 @@ def Rician_noise(dwi_noiseless, sigma, seed = 0):
     
     return dwi
 #%% Description: Transform the spherical coordinate sysmtem to cartesian coordinate system
-def sph2cart(theta, phi):
-    return np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)
+def sph2cart(theta, phi, r = 1):
+    return r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta)
 #%%
 def cart2sph(x, y, z):
     phi = np.arctan2(y, x) / (2*np.pi)
