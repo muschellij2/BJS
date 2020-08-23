@@ -2,13 +2,7 @@
 ###batch download hcp data and register dwi to a reference -- this is the first step in the real data analysis 
 ##Update 9/27/2019;
 ##Update 2/08/2020; added "ListBucketResult" in the path. (b/c AWS path is updated.)
-
-#### loading parallel loop packages 
-#library(foreach)
-#library(doParallel)
-#library(parallel)
-#numcores=detectCores()
-#makeCluster()
+##Update 7/29/2020; 
 
 ############################ Part I: get subject information #################################
 ### Find the subjects whose dMRI data is available on AMAZON database.
@@ -51,58 +45,77 @@ for(i in 1:length(subject_list)){
 ## Currently, dMRI of 435 subjects are abvailable in Amazon Database.  #length(subject_ids)
 ## Choose dMRI whose file size is greater than 1GB (1,000,000,000) - 90 gradient directions.
 ## 395 dMRI data satisfies the above criteria.
-#final_subjects=subject_ids[which(size_info>1000000000)]
-#length(final_subjects)
-
-write.csv(final_subjects, "~/Desktop/final_subject.csv")
 
 ############################ Part II: download and registration through FSL: done on a server ################
 ## transfer the R code to shell for registration through FSL.
 library(fslr) ##https://www.neuroconductor.org/package/fslr
-id = final_subjects
+
+source('R/fslr_fncts.R')  # Define the path of fslr_fncts.R
+
+id = 100307  #Example subject ID 100307
+
+#Specify the directory to download and process the image.
+data_path = paste0('user_path', id, '/')
+
+#Specify the directory of references (following directory is example if OS is Mac)
+#Reference (MNI 2mm)
+ref_brain_with_skull = "/usr/local/fsl/data/standard/MNI152_T1_2mm.nii.gz"
+ref_brain = "/usr/local/fsl/data/standard/MNI152_T1_2mm_brain.nii.gz"
+ref_brain_mask = "/usr/local/fsl/data/standard/MNI152_T1_2mm_brain_mask_dil.nii.gz"
+flirtconfig = '/usr/local/fsl/etc/flirtsch/T1_2_MNI152_2mm.cnf'
 
 #The follwing code is for download and registration at the same time.
 
-for (i in 1:length(id)){
-  print(id[i])
-  hcp_indir=paste0("HCP/",id[i],"/T1w/Diffusion") ##DWI
-  hcp_infile=paste0("HCP/",id[i],"/T1w/T1w_acpc_dc_restore_1.25.nii.gz") ##T1
+# Set the directories for downloading
+hcp_indir=paste0("HCP/",id,"/T1w/Diffusion") ##DWI
+hcp_infile=paste0("HCP/",id,"/T1w/T1w_acpc_dc_restore_1.25.nii.gz") ##T1
    
-  hcp_outdir=paste0("/scratch/syhwang/hcp/",id[i])
-  hcp_outfile=paste0("/scratch/syhwang/hcp/",id[i],"/T1w.nii.gz")
+hcp_outdir = data_path
+hcp_outfile = paste0(data_path, "T1w_acpc_dc_restore_1.25.nii.gz")
   
-  ##download from AWS:
-  download_hcp_dir(hcp_indir, outdir=hcp_outdir, verbose=FALSE) ##  DWI
-  download_hcp_file(hcp_infile, destfile=hcp_outfile, verbose=FALSE) ## T1
+##download from AWS:
+download_hcp_dir(hcp_indir, outdir=hcp_outdir, verbose=FALSE) ##  DWI
+download_hcp_file(hcp_infile, destfile=hcp_outfile, verbose=FALSE) ## T1
   
-  ##processing by fsl: 
-  # (i) extract brain by BET
-  fsl_bet_infile1=paste0("/scratch/syhwang/hcp/",id[i],"/T1w.nii.gz")  ##T1
-  fsl_bet_outfile1=paste0("/scratch/syhwang/hcp/",id[i],"/T1w_brain.nii.gz")
+##processing by fsl: 
+# (i) extract brain by BET
+bet_w_fslmaths(T1w = paste0(data_path, 'T1w_acpc_dc_restore_1.25.nii.gz'),
+               mask = paste0(data_path, 'nodif_brain_mask.nii.gz'), 
+               outfile = paste0(data_path,'T1w_acpc_dc_restore_1.25_brain.nii.gz')) 
+
+# (ii) FAST segmentation (GM, WM, CSF)
+fast(file = paste0(data_path,'T1w_acpc_dc_restore_1.25_brain.nii.gz'), 
+     outfile = nii.stub(paste0(data_path,'T1w_acpc_dc_restore_1.25_brain.nii.gz')), 
+     opts = '-N')
+?fast
+# (iii) Registration by FLIRT (Affine -- dof = 12); get the registration matrix.
+flirt(infile = paste0(data_path,'T1w_acpc_dc_restore_1.25_brain.nii.gz'),  #Input: Brain extracted T1-weighted image
+      reffile = ref_brain, #Reference brain image: MNI152_2mm_brain
+      omat = paste0(data_path,'org2std.mat'),  #Registration Matrix: Need to FNIRT.
+      dof = 12,
+      outfile = paste0(data_path,'T1w_acpc_dc_restore_1.25_brain_flirt12.nii.gz'))
   
-  fsl_bet_infile2=paste0("/scratch/syhwang/hcp/",id[i],"/data.nii.gz") ##DWI
-  fsl_bet_outfile2=paste0("/scratch/syhwang/hcp/",id[i],"/data_brain.nii.gz")
-  
-  fsl_bet(infile=fsl_bet_infile1, outfile=fsl_bet_outfile1) #BET extracting brain 
-  fsl_bet(infile=fsl_bet_infile2, outfile=fsl_bet_outfile2)
-  
-  
-  #(ii) registration by FLIRT
-  flirt_infile1=paste0("/scratch/syhwang/hcp/",id[i],"/T1w_brain.nii.gz") ##input brain: extracted T1 brain
-  flirt_outfile1=paste0("/scratch/syhwang/hcp/",id[i],"/T1w_brain_flirt.nii.gz") ## output brain 
-  flirt_omat=paste0("/scratch/syhwang/hcp/",id[i],"/T1w_flirt.mat") ## registration matrix: needed to register the DTI brain
-  
-  
-  #(a)FLIRT AFFINE(dof=12) registration based on T1:  get the registration matrix 
-  flirt(infile=flirt_infile1, outfile=flirt_outfile1, omat=flirt_omat,
-        dof=12, reffile="/usr/local/fsl/data/standard/MNI152_T1_2mm_brain.nii.gz") ## the last argument gives the reference brain 
-  
-  #(b) register the DWI brain using the registration matrix from (a)
-  flirtap_infile1=paste0("/scratch/syhwang/hcp/",id[i],"/data_brain.nii.gz")
-  flirtap_outfile1=paste0("/scratch/syhwang/hcp/",id[i],"/data_brain_flirt.nii.gz")
-  
-  flirt_apply(infile=flirtap_infile1, outfile=flirtap_outfile1,
-              reffile="/usr/local/fsl/data/standard/MNI152_T1_2mm_brain.nii.gz",
-              initmat=flirt_omat) 
-  print(i)
-}
+# (iv) Registration by FNIRT 
+opt_fnirt=paste0(' --aff=',data_path,'org2std.mat',  #affine transformation matrix from the previous FLIRT
+                 ' --config=',flirtconfig,
+                 ' --cout=', data_path, 'org2std_coef.nii.gz',  #the spline coefficient and a coopy of the affine transform 
+                 ' --fout=', data_path, 'org2std_warp.nii.gz')  #actual warp-field in the x,y,z directions/.
+
+fnirt(infile = paste0(data_path,'T1w_acpc_dc_restore_1.25.nii.gz'),  #Input: Original T1-weighted image
+      reffile = ref_brain_with_skull, #Reference brain image: MNI152_2mm
+      outfile = paste0(data_path,'T1w_acpc_dc_restore_1.25_fnirt.nii.gz'),
+      opts = opt_fnirt)
+
+
+# (v) Inverse warp-field
+invwarp(reffile=paste0(data_path,'T1w_acpc_dc_restore_1.25.nii.gz'), #Reference: Original T1-weighted image
+        infile=paste0(data_path,'org2std_warp.nii.gz'), #warp-field file from FNIRT
+        outfile=paste0(data_path,'std2org_warp.nii.gz')) #inverse of warp-field
+
+
+# (vi) Apply transformation  any masks on MNI152 to the native space.
+# (You should make mask_file)
+fsl_applywarp(infile = paste0(data_path,'mask_file.nii.gz'), #mask on MNI152
+              reffile = paste0(data_path,'T1w_acpc_dc_restore_1.25.nii.gz'), #Reference: Original T1-weighted image
+              outfile = paste0(data_path,'mask_file_org.nii.gz'), #mask on native space
+              warpfile = paste0(data_path,'std2org_warp.nii.gz')) #inverse warp-field file from FNIRT

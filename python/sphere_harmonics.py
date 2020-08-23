@@ -62,9 +62,34 @@ def spharmonic(theta, phi, lmax):
 #       (theta0, phi0): a direction of a single fiber
 #       (theta, phi): a set of spherical harmonic coordiates
 # Output: a value of response function
-def myresponse(b, ratio, theta0, phi0, theta, phi):
+#def myresponse(b, ratio, theta0, phi0, theta, phi):
 
-	D = np.diag(np.array([1.0/ratio, 1.0/ratio, 1]))
+#	D = np.diag(np.array([1.0/ratio, 1.0/ratio, 1]))
+#	u = np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)])
+
+	# rotation matrix around y-axis
+#	T_theta = np.array([[np.cos(theta0), 0, -np.sin(theta0)], [0, 1, 0], [np.sin(theta0), 0, np.cos(theta0)]])
+	# rotation matrix around z-axis
+#	T_phi = np.array([[np.cos(phi0), np.sin(phi0), 0], [-np.sin(phi0), np.cos(phi0), 0], [0, 0, 1]])
+	# rotation matrix T0 satisfies T0*[sin(theta0)*cos(phi0), sin(theta0)*sin(phi0), cos(theta0)]=[0, 0, 1]
+#	T0 = T_theta.dot(T_phi)
+
+	# plug in T0*u into single tensor model along z-axis (i.e., D is a diagonal matrix)
+#	y = np.exp(-b*u.T.dot(T0.T).dot(D).dot(T0).dot(u))
+
+#	return y
+
+
+# Description: generate response function for a single fiber. response function is along (theta0, phi0) and is evaluated at (theta, phi)
+# Input: b: b-value (1,000mm^2/s ~ 3,000mm^2/s)
+#		lambda1 : first eigenvalue (default 1,000^-3)
+#       ratio: the ratio between the 1st eigenvalue and the average of the 2nd and 3rd eigenvalues.
+#       (theta0, phi0): a direction of a single fiber
+#       (theta, phi): a set of spherical harmonic coordiates
+# Output: a value of response function
+def single_tensor(b, ratio, theta0, phi0, theta, phi, lambda1 = 0.001):
+
+	D = np.diag(np.array([lambda1/ratio, lambda1/ratio, lambda1]))
 	u = np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)])
 
 	# rotation matrix around y-axis
@@ -89,13 +114,13 @@ def myresponse(b, ratio, theta0, phi0, theta, phi):
 #       lmax : the maximum level of basis. (number of symmetrized SH basis  = (lmax+1)*(lmax+2)/2)
 # Output: R_matrix: number of symmetrized SH basis * number of symmetrized SH basis, a diagonal matrix with diagonal elements
 
-def Rmatrix(b, ratio, lmax, J = 5):
+def Rmatrix(b, ratio, lmax, J = 5, lambda1=0.001):
 
 	pos, theta, phi = spmesh(J, half = 0)
 
 	# evaluate response function on grid specified by (theta, phi)
-	R = np.array([myresponse(b, ratio, 0, 0, theta[i], phi[i]) for i in range(len(theta))])
-
+	#R = np.array([myresponse(b, ratio, 0, 0, theta[i], phi[i]) for i in range(len(theta))])
+	R = np.array([single_tensor(b, ratio, 0, 0, theta[i], phi[i], lambda1=lambda1) for i in range(len(theta))])
 	SH_matrix = spharmonic(theta, phi, lmax)
 	# inner product of response function and all SH basis up to lmax
 	r = np.linalg.solve(SH_matrix.T.dot(SH_matrix), SH_matrix.T.dot(R))

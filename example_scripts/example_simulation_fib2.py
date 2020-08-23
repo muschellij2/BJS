@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Purpose: Example for Simulation (2 fiber case)
 @author: Seungyong (30 Jan 2020)
@@ -10,11 +8,9 @@ Purpose: Example for Simulation (2 fiber case)
 #%% Set working directory
 import os
 
-#path = '/Users/jiepeng/Dropbox/CRCNS_projects/FDD_estimation/codes/BJS/python/'
-path = '/Users/seungyong/Dropbox/FDD_estimation/codes/BJS/python/'
-#path = 'C:/Users/Seung/Dropbox/FDD_estimation/codes/BJS/python/'
-
+path = 'python script path'
 os.chdir(path)
+
 # import built in Packages
 import numpy as np
 import tqdm
@@ -37,7 +33,7 @@ ratio = 10 #response function: ratio between the first eigenvalue and the avarag
 # Parameters for DWI generation and level of  SH basis used in the methods
 J = 2.5 #Tessellation order: control the sampling scheme of the gradient directions on the sphere. E.g., J = 2.5 (n = 41), J = 3 (n = 91), J = 4(n = 321)     
 lmax = 6 #the maximum level of real symmetrized spherical harmonic basis used in (BJS, superCSD, SHridge); for n=41 (J=2.5), use lmax=6; for n=91 (J=3), use lmax=10, for n=321, lmax=12
-b = 1 #b-value (1 = 1,000s/mm^2, 3 = 3,000s/mm^2)
+b = 1000 #b-value (1 = 1,000s/mm^2, 3 = 3,000s/mm^2)
 sigma = 0.02 #SNR = 1/sigma (sigma=0.02 (SNR = 50), sigma=0.05 (SNR = 20))
 
 
@@ -63,7 +59,7 @@ fib2_pos2 = sph2cart(fib2_theta[1], fib2_phi[1])
 true_fod = true_fod_crossing(weight, fib2_theta, fib2_phi, lmax = 20) # projection of the FOD on a high order SH basis 
 
 # Generate DWI observations: 
-dwi_noiseless = myresponse_crossing(b, ratio, weight, fib2_theta, fib2_phi, theta, phi) #noisless signals
+dwi_noiseless = tensor_crossing(b, ratio, weight, fib2_theta, fib2_phi, theta, phi) #noisless signals
 dwi = np.zeros((len(theta),rep))
 for i in range(rep):
     dwi[:,i] = Rician_noise(dwi_noiseless, sigma, seed=i) ##add Rician noise to noiseless DWI signals
@@ -206,7 +202,7 @@ else:
     print("SHridge: D.R 0, mean(s.e.) - (-)")
 
 
-#%
+#%%
 bjs_mean =  np.mean(store_est_fod_bjs, axis=1)    
 scsd_mean =  np.mean(store_est_fod_superCSD, axis=1)   
 shridge_mean =  np.mean(store_est_fod_shridge, axis=1)

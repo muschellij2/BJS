@@ -6,7 +6,7 @@
 import numpy as np
 
 # Defined functions for the tasks with Spherical Harmonic basis.
-from sphere_harmonics import myresponse, spharmonic, spharmonic_eval
+from sphere_harmonics import single_tensor, spharmonic, spharmonic_eval #myresponse
 from sphere_mesh import spmesh
 from fod_estimation import fod_stand
 
@@ -50,13 +50,13 @@ def true_fod_crossing(weight, theta0, phi0, lmax = 20):
     return fod
 #%% Description: generate noiseless DWI for a crossing fiber - Seungyong
 # each response function is along (theta0, phi0) and is evaluated at (theta, phi)
-def myresponse_crossing(b, ratio, weight, theta0, phi0, theta, phi):
+def tensor_crossing(b, ratio, weight, theta0, phi0, theta, phi, lambda1 = 0.001):
     
-    dwi_noiseless = weight[0] * np.array([myresponse(b, ratio, theta0[0], phi0[0], theta = theta[at], phi = phi[at]) for at in range(len(theta))])
+    dwi_noiseless = weight[0] * np.array([single_tensor(b, ratio, theta0[0], phi0[0], theta = theta[at], phi = phi[at], lambda1 = lambda1) for at in range(len(theta))])
     
     if len(weight) > 1:
         for i in range(1, len(weight)):
-            dwi_noiseless =  dwi_noiseless + weight[i] * np.array([myresponse(b, ratio, theta0[i], phi0[i], theta = theta[at], phi = phi[at]) for at in range(len(theta))])
+            dwi_noiseless =  dwi_noiseless + weight[i] * np.array([single_tensor(b, ratio, theta0[i], phi0[i], theta = theta[at], phi = phi[at], lambda1 = lambda1) for at in range(len(theta))])
         
     
     return(dwi_noiseless)
@@ -78,9 +78,9 @@ def sph2cart(theta, phi, r = 1):
     return r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta)
 #%%
 def cart2sph(x, y, z):
-    phi = np.arctan2(y, x) / (2*np.pi)
-    phi = phi + (phi<0)
-    theta = np.arccos(z)/np.pi
+    theta = np.arccos(z)
+    phi = np.arctan2(y, x)
+    phi += 2*np.pi*(phi<0)
     return theta, phi
 #%% Description: Metric for distribution comparison (hellinger distance)
 def hellinger_distance(f1, f2, const):

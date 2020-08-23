@@ -46,48 +46,46 @@ def gauss_newton_dwi(bvec, bval, y, thresh = 1e-10):
 # in function "myresponse", D is assumed to have eigenvalues 1/ratio, 1/ratio and 1, however in practice, 
 # the largest eigenvalue of D might be, say lambda. we then set b_factor=lambda, and change b value by b=b*b_factor,
 # thus -b*u^T*D*u in function "myresponse" will have the correct value
-def est_parameters_response(brain_image, bvecs, bvals, xmin=20, xmax=70, ymin=30, ymax=70, zmin=30, zmax=60):
+def est_parameters_response(dmri, wm_mask_image, bvecs, bvals):
     
-    # Standardize b-values into 3 commonly used b-values
+    coord, _, _, _, _, _, _, _, _, _ = ROI_info(wm_mask_image)
+    wm_dmri = dmri[coord]
+    
+    #Standardize b-values into 3 commonly used b-values
     bval_list = np.array([1000, 2000, 3000])
     bvals[np.abs(bvals)<100] = 0
     for b in bval_list:
-    	bvals[np.abs(bvals-b)<100] = b
-    
+        bvals[np.abs(bvals-b)<100] = b
+
     # Separate DWI into b=0 image and b=1000, 2000, 3000 images.
     bval_indi = np.array([i for i in range(len(bvals)) if bvals[i] in bval_list])
-    img_b0_all, img_data_all  = brain_image[..., bvals == 0], brain_image[..., bval_indi] 
+    wm_b0, wm_data  = wm_dmri[..., bvals == 0], wm_dmri[..., bval_indi] 
     bvec, bval = bvecs[..., bval_indi], bvals[bval_indi]
-    
-    # Estimate b_factor and ratio for response function (kernel function)
-    ## Set the ROI for pre-analysis (which covers the ROI analysis )
-    x_pre, y_pre, z_pre = np.arange(xmin, xmax), np.arange(ymin, ymax), np.arange(zmin, zmax)
-    img_b0_pre, img_data_pre = img_b0_all[np.ix_(x_pre, y_pre, z_pre)], img_data_all[np.ix_(x_pre, y_pre, z_pre)]
 
-    ## Estimate S0 and SNR from b = 0 image
-    img_b0_pre_indi = img_b0_pre.min(axis=3)>0
-    S0_pre, sigma_pre = img_b0_pre.mean(axis=3)*img_b0_pre_indi, img_b0_pre.std(axis=3, ddof=1)*img_b0_pre_indi
-    SNR = np.median(S0_pre[img_b0_pre_indi]/sigma_pre[img_b0_pre_indi])
-    
-    ## Fit the single tensor model to b=1000, 2000, 3000 images.
+    # Estimate S0 and SNR from b = 0 image
+    wm_b0_indi = wm_b0.min(axis=1)>0
+    S0_pre, sigma_pre = wm_b0.mean(axis=1)*wm_b0_indi, wm_b0.std(axis=1, ddof=1)*wm_b0_indi
+    SNR = np.median(S0_pre[wm_b0_indi]/sigma_pre[wm_b0_indi])
+
+    # Fit the single tensor model to b = 1000, 2000, 3000 images.
     ### Normalize the original image
-    img_norm = (img_data_pre.T/S0_pre.T).T 
+    img_norm = (wm_data.T/S0_pre.T).T
     img_norm[img_norm<=0] = np.min(img_norm[img_norm>0])
     img_norm[img_norm==float("inf")] = np.max(img_norm[img_norm<float("inf")])
-    
+     
     n_index = img_norm.shape[:-1]
-    eval_pre = np.ones(n_index+(3,))  # store 3 eigenvalues of D matrix for each voxel
+    eval_pre = np.ones(n_index+(3,))  #store 3 eigenvalues of tensor for each voxel
     index_list = list(np.ndindex(n_index))
-    
+
     for k in index_list:
-    	D_matrix = gauss_newton_dwi(bvec, bval, img_norm[k])
-    	if not np.isnan(D_matrix).any():
-    		eval_pre[k] = np.sort(np.linalg.eig(D_matrix)[0])
-    
+        D_matrix = gauss_newton_dwi(bvec, bval, img_norm[k])
+        if not np.isnan(D_matrix).any():
+            eval_pre[k] = np.sort(np.linalg.eig(D_matrix)[0])
+            
     FA_pre = np.sqrt(((eval_pre[..., 0]-eval_pre[..., 1])**2+(eval_pre[..., 1]-eval_pre[..., 2])**2
-    	+(eval_pre[..., 2]-eval_pre[..., 0])**2)/(2*(eval_pre[..., 0]**2+eval_pre[..., 1]**2+eval_pre[..., 2]**2)))
+        +(eval_pre[..., 2]-eval_pre[..., 0])**2)/(2*(eval_pre[..., 0]**2+eval_pre[..., 1]**2+eval_pre[..., 2]**2)))
     eval_ratio_pre = eval_pre[..., 2]*2/(eval_pre[..., 0]+eval_pre[..., 1])
-    eval_pre_indi = (FA_pre<1) * (FA_pre>0.8) * ((eval_pre>0).all(axis=3)) * (eval_pre[..., 1]/eval_pre[..., 0]<1.5)
+    eval_pre_indi = (FA_pre<1) * (FA_pre>0.8) * ((eval_pre>0).all(axis=1)) * (eval_pre[..., 1]/eval_pre[..., 0]<1.5)
     
     eval_select_pre = list(zip(eval_pre[eval_pre_indi], eval_ratio_pre[eval_pre_indi]))
     eval_select_pre.sort(key = lambda x: x[1])
