@@ -1,0 +1,15 @@
+Package: dmri.tracking
+Type: Package
+Title: dMRI Tracking
+Version: 0.1.0
+Author: Who wrote it
+Maintainer: The package maintainer <yourself@somewhere.net>
+Description: More about what it does (maybe more than one line)
+    Use four spaces when indenting paragraphs within the Description.
+License: GPL-2
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.0.2
+Imports: rgl
+NeedsCompilation: yes
+Packaged: 2020-03-02 22:58:33 UTC; seungyong
