@@ -23,8 +23,8 @@
 #'
 #' v.track function will track the fiber based on the obtained peaks in each voxel.
 #' @param v.obj vobj
-#' @param xgrid.sp xgird.sp
-#' @param ygrid.sp ygrid.sp
+#' @param xgrid.sp xgrid.sp
+#' @param ygrid.sp ygrid.spg
 #' @param zgrid.sp zgrid.sp
 #' @param braingrid braingrid
 #' @param max.line max.line
@@ -304,7 +304,7 @@ dist.line <- function(x, y, z){
 }
 
 #' assuming inc, outc are coordinates with the center of the voxel being (0,0,0)
-#' compute the distance of the current fiber directon to each face of the current voxel
+#' compute the distance of the current fiber direction to each face of the current voxel
 #' create a box with x,y,z dimens and divide by travel speed(direct)
 #' @param inc inc
 #' @param direct direct
@@ -315,7 +315,7 @@ fiber.in.out <- function(inc, direct, dimens){
   if (sum(dimens==0)){
     stop("directions has zero component, not yet supported! Please modify fiber.in.out\n")
   }
-  # compute the distance of the current fiber directon to each face of the current voxel
+  # compute the distance of the current fiber direction to each face of the current voxel
   # create a box with x,y,z dimens and divide by travel speed(direct)
   tempdiff <- (round(cbind(dimens/2-inc,-inc-dimens/2),5)/direct)  ## Hao: add round5
 
